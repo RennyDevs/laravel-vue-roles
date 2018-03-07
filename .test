@@ -1,0 +1,447 @@
+
+
+/////////////////////////////////////////////////////////////////////////////////
+
+        // Tiene uno
+        // return $this->hasOne(Models\Module::class, 'id');
+            // pertenece a
+        // return $this->belongsTo(Models\Module::class);
+
+        // pertenece a
+        // return $this->belongsTo(Models\Module::class);
+
+        // public function post()
+    // {
+        // return $this->belongsTo('App\Post');
+    // }
+    // public function comments()
+    // {
+    //     return $this->hasMany('App\Comment');
+    // }
+
+    // public function marcasNoTrabajanEnOficina(){
+    //     $ids = \DB::table('marca_oficina')->where('oficina_id', '=', $this->id)->lists('marca_id');
+    //     return Marca::whereNotIn('id', $ids)->get();
+    // }
+
+    // Con el nombre de la relación en el whereHas: donde tiene
+    // Marcas::whereHas('oficina', function($query) {
+    //     $query->where('oficina_id', '!=', $this->id);
+    // });Te podría quedar algo así, esta es la forma de hacer consultas en tablas relacionadas
+
+    // hasta aqui esta bien!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    // public function hasPermissions($permissions,$all=false){
+        // @if( Auth::user()->hasPermissions(['roles_register']) )
+    //     @if( Auth::user()->hasPermissions(['roles_edit', 'roles_delete'], true))
+    //     if( $this->id  == 1) {
+    //         return true;
+    //     }
+
+    //     if(!$all){
+    //         foreach ($permissions as $permission){
+    //           $idP  = Permission::where('ip', $permission)->value('id');
+    //           if(Permissions_assigned::where('role', $this->rol)->where('permission', $idP)->first())
+    //             return true;
+    //         }
+    //         return false;
+    //     }
+    //     else{
+    //         foreach ($permissions as $permission){
+    //           $idP  = Permission::where('ip', $permission)->value('id');
+    //           if(!Permissions_assigned::where('role', $this->rol)->where('permission', $idP)->first())
+    //             return false;
+    //         }
+    //         return true;
+    //     }
+    // }
+
+    // public function getDepositoName()
+    // {
+    //     return  Deposito::where('id', $this->deposito)->value('nombre'); 
+    // }
+
+    //     public function hasAccess(array $permissions) : bool
+    // {
+    //     foreach ($permissions as $permission) {
+    //         if ($this->hasPermission($permission))
+    //             return true;
+    //     }
+    //     return false;
+    // }
+
+    // private function hasPermission(string $permission) : bool
+    // {
+    //     return $this->permissions[$permission] ?? false;
+    // }
+
+        /**
+     * Checks if User has access to $permissions.
+     */
+    // public function hasAccess(array $permissions) : bool
+    // {
+    //     // check if the permission is available in any role
+    //     foreach ($this->roles as $role) {
+    //         if($role->hasAccess($permissions)) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    /**
+     * Checks if the user belongs to role.
+     */
+    // public function inRole(string $roleSlug)
+    // {
+    //     return $this->roles()->where('slug', $roleSlug)->count() == 1;
+    // }
+}
+
+/*
+
+public function authorizeRoles($roles)
+{
+    if ($this->hasAnyRole($roles)) {
+        return true;
+    }
+    abort(401, 'Esta acción no está autorizada.');
+}
+public function hasAnyRole($roles)
+{
+    if (is_array($roles)) {
+        foreach ($roles as $role) {
+            if ($this->hasRole($role)) {
+                return true;
+            }
+        }
+    } else {
+        if ($this->hasRole($roles)) {
+            return true;
+        }
+    }
+    return false;
+}
+public function hasRole($role)
+{
+    if ($this->roles()->where('name', $role)->first()) {
+        return true;
+    }
+    return false;
+}
+
+        $request->user()->authorizeRoles(['user', 'admin']);
+                $request->user()->authorizeRoles(‘admin’);
+
+                @if(Auth::user()->hasRole('admin'))
+    <div>Acceso como administrador</div>
+@else
+    <div>Acceso usuario</div>
+@endif
+*/
+
+
+
+
+//////////////////////////////////////////////////////////
+validacion request
+        // regex:/^[a-z ,.\'-]+$/i
+
+
+((((((((((((((((((((((((((()))))))))))))))))))))))))))
+<?php
+
+namespace MichaelCooke\Guardian\Traits;
+
+use MichaelCooke\Guardian\Permission;
+
+trait Permissible
+{
+    /**
+     * Adds an access definition to a permissible model.
+     *
+     * @param  \MichaelCooke\Guardian\Permission
+     * @return Integer
+     */
+    protected function addAccessDefinition(Permission $permission, bool $restriction)
+    {
+        if ($this->hasPermission($permission->key) || $this->hasRestriction($permission->key)) {
+            return $this->permissions()->updateExistingPivot($permission->id, ['restrict' => $restriction]);
+        }
+
+        return $this->permissions()->attach($permission, ['restrict' => $restriction]);
+    }
+
+    /**
+     * Adds a permission to a permissible model.
+     *
+     * @param  \MichaelCooke\Guardian\Permission
+     * @return Integer
+     */
+    public function addPermission(Permission $permission)
+    {
+        return $this->addAccessDefinition($permission, false);
+    }
+
+    /**
+     * Adds a restriction to a permissible model.
+     *
+     * @param  \MichaelCooke\Guardian\Permission
+     * @return Integer
+     */
+    public function addRestriction(Permission $permission)
+    {
+        return $this->addAccessDefinition($permission, true);
+    }
+
+    /**
+     * Returns all access definitions for a permissible model.
+     *
+     * @param  boolean $restrictions
+     * @return \Illuminate\Support\Collection
+     */
+    protected function getAccessDefinitions(bool $restrictions)
+    {
+        /*
+         * In order to store all directly assigned and inherited access
+         * definitions for the permissible model, we create a new
+         * collection that we'll return later. We'll also get
+         * any directly assigned access definitions for
+         * the permissible model so we can add them
+         * to the new collection.
+         */
+        $accessDefinitions = collect([]);
+        $modelAccessDefinitions = $this->permissions()->wherePivot('restrict', $restrictions)->get();
+
+        /*
+         * If there are directly assigned access definitions for the
+         * permissible model, we need to iterate over each of
+         * them and put them in the new collection we're
+         * returning later on.
+         */
+        if ($modelAccessDefinitions->isNotEmpty()) {
+            foreach ($modelAccessDefinitions as $modelAccessDefinition) {
+                $accessDefinitions->push($modelAccessDefinition);
+            }
+        }
+
+        /*
+         * If the permissible model inherits access definitions from other
+         * permissible models, we need to iterate over each of them to
+         * get their assigned access definitions which will be
+         * inherited by the permissible model we're
+         * getting all access definitions for.
+         */
+        if ($this->inheritsAccessFrom != null) {
+            foreach ($this->inheritsAccessFrom as $permissibleModel) {
+                $inheritedModels = $this->{$permissibleModel}()->get();
+
+                /*
+                 * If the permissible model belongs to multiple instances of
+                 * a model the original permissible model inherits access
+                 * definitions from, we need to iterate over each one
+                 * them to get their access definitions.
+                 */
+                if ($inheritedModels->isNotEmpty()) {
+                    foreach ($inheritedModels as $inheritedModel) {
+                        $inheritedModelAccessDefinitions = $inheritedModel->permissions()->wherePivot('restrict', $restrictions)->get();
+
+                        /*
+                         * If the instance of an inherited model has access
+                         * definitions, we need to iterate over each of
+                         * them and add them to the collection we're
+                         * returning.
+                         */
+                        if ($inheritedModelAccessDefinitions->isNotEmpty()) {
+                            foreach ($inheritedModelAccessDefinitions as $inheritedModelAccessDefinition) {
+                                $accessDefinitions->push($inheritedModelAccessDefinition);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return $accessDefinitions;
+    }
+    
+    /**
+     * Returns all permissions explicitly assigned and inherited for a
+     * permissible model.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getAllPermissionsAttribute()
+    {
+        return $this->getAccessDefinitions(false);
+    }
+
+    /**
+     * Returns all restrictions explicitly assigned and inherited for a
+     * permissible model.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getAllRestrictionsAttribute()
+    {
+        return $this->getAccessDefinitions(true);
+    }
+
+    /**
+     * Get the permissible model's restrictions.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getPermissionsAttribute()
+    {
+        return $this->permissions()->wherePivot('restrict', false)->get();
+    }
+
+    /**
+     * Get the permissible model's restrictions.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getRestrictionsAttribute()
+    {
+        return $this->permissions()->wherePivot('restrict', true)->get();
+    }
+
+    /**
+     * Determines whether or not a permissible model has access with a given
+     * permission key, evaluating all directly assigned and inherited
+     * permissions and restrictions.
+     *
+     * @param  String $key
+     * @return boolean
+     */
+    public function hasAccess(String $key)
+    {
+        return !$this->hasRestriction($key) && $this->hasPermission($key);
+    }
+
+    /**
+     * Determines whether or not a permissible model has a particular access
+     * definition.
+     *
+     * @param  String $key
+     * @param  String $permissibleModel
+     * @return boolean
+     */
+    protected function hasAccessDefinition(String $key, bool $restriction)
+    {
+        $accessDefinitions = $this->getAccessDefinitions($restriction);
+
+        foreach ($accessDefinitions as $accessDefinition) {
+            if (fnmatch($accessDefinition->key, $key)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determines whether or not a permissible model has a particular
+     * permission.
+     *
+     * @param  String $key
+     * @return boolean
+     */
+    public function hasPermission(String $key)
+    {
+        return $this->hasAccessDefinition($key, false);
+    }
+
+    /**
+     * Determines whether or not a permissible model has a particular
+     * restriction.
+     *
+     * @param  String $key
+     * @return boolean
+     */
+    public function hasRestriction(String $key)
+    {
+        return $this->hasAccessDefinition($key, true);
+    }
+}
+
+
+
+
+((((((((((((((((((((((((((((((((((((((((()))))))))))))))))))))))))))))))))))))))))
+
+    /**
+     * Get the user's first name.
+     *
+     * @param  string  $value
+     * @return string
+     */
+    // public function getFromAtAttribute($value)
+    // {
+    //     return \Carbon\Carbon::parse($value);
+    // }
+
+//////////////////////////////////////////////////////////////////////////////
+    // public function setDateOfFromAttribute($value) {
+    //  $this->attributes['from_at'] = Carbon::createFromFormat('H-i-s', $value);
+    // }
+    // public function setDateOfToAttribute($value) {
+    //  $this->attributes['to_at'] = Carbon::createFromFormat('H-i-s', $value);
+    // }
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+    
+
+// Route::get('/{path?}', function () {
+//     return view('welcome');
+// })->where('path', '[\/\w\.-]*');
+
+// Limitar número de peticiones procesadas - El primer argumento del middleware se refiere a la cantidad de intentos máximos para acceder a la ruta y el segundo argumento es la cantidad de minutos. Es decir, en este ejemplo, un usuario podría acceder a la url '/throttle' 2 veces por minuto
+// Route::get('/throttle', function () {
+//     return 'Access granted!';
+// })->middleware('throttle:rate_limit,1');
+
+// Si el usuario está conectado, Laravel va a obtener la información de la propiedad rate_limit del modelo de dicho usuario. Es decir, va a llamar a auth()->user()->rate_limit y a usar el valor retornado por esta propiedad como el número máximo de intentos permitidos.
+// Route::get('/user-throttle', function () {
+//     return 'Access Granted!';
+// })->middleware('throttle:rate_limit,1');
+
+// Descarga de archivos con Storage::download
+// Uso simple:
+// Storage::download('nombre-de-archivo.txt'):
+// Darle un nombre personalizado al archivo:
+// Storage::download('nombre-de-archivo.txt', 'nombre-personalizado.txt'):
+
+// Uso del driver argon:
+// Una alternativa a bcrypt para generar hashes es utilizar el driver argon en Laravel 5.6, el cual acepta más opciones de configuración que bcrypt:
+// Hash::driver('argon')->make('secret');
+// Uso del driver argon con opciones personalizadas:
+// Hash::driver('argon')->make('secret', [
+//   'threads' => 4,
+//   'memory' => 2048,
+//   'time' => 2000,
+// ]);
+
+
+axios 
+axios({
+    url: 'api.php', //Endpoint
+    method: 'GET',  //Método
+    timeout: 3000,  //Tiempo máximo de espera
+    responseType: 'JSON',  //Tipo de respuesta (Por defecto es JSON)
+    }).then(function (response) {
+       //Si todo OK te imprime la respuesta
+       console.log(response.data); //Datos de la respuesta
+       console.log(response.status); //Estatus
+       console.log(response.statusText); //Mensaje del estatus
+       console.log(response.headers); // Encabezados
+    }).catch(function (error) {
+       //Si hay error el catch lo imprime
+       console.log(error.response); //Objeto respuesta
+       console.log(error.response.data); // Respuesta del servidor
+       console.log(error.response.status); //Código de error
+       console.log(error.response.statusText); //Mensaje del error
+   });
